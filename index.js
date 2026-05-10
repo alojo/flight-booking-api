@@ -9,12 +9,17 @@ const { auth } = require("./middleware/auth");
 const { cache, invalidateCache } = require("./middleware/cache");
 const asyncHandler = require("./middleware/asyncHandler");
 const errorHandler = require("./middleware/errorHandler");
+const rateLimiter = require("./middleware/rateLimiter");
 
-const app = express(); // 2. Create an Express app instance
+const app = express(); // 2. Create an Express app instance.  app is now the server. It can listen for HTTP requests.
 
-//2. app is now the server. It can listen for HTTP requests.
-app.use(express.json()); //  3. Middleware: parse JSON in request bodies; allows us to read JSON request bodies
-// 3. This lets us read req.body when someone sends JSON in a POST request. Without this, req.body would be undefined.
+// 3. Middleware: parse JSON in request bodies; allows us to read JSON request bodies
+// This lets us read req.body when someone sends JSON in a POST request. Without this, req.body would be undefined.
+app.use(express.json());
+
+// Rate limit: 100 requests per 15 minutes per IP
+//app.use() applies it globally to every route. So all endpoints (flights, bookings, auth) are protected.
+app.use(rateLimiter(100, 15 * 60 * 1000)); //100 requests per 15 minutes per IP address. So if one IP sends 100 requests within 15 minutes, request 101 gets blocked with a 429 error. After 15 minutes the window resets and they get 100 more.
 
 app.use("/api/auth", authRoutes);
 
@@ -22,8 +27,7 @@ app.use("/api/bookings", bookingRoutes) //REST convention — resource names in 
 
 
 // connect to local MongoDB
-
-mongoose.connect("mongodb://localhost:27017/flight-booking")
+mongoose.connect(process.env.MONGO_URL ||  "mongodb://localhost:27017/flight-booking")
   .then(() => console.log("Connected to MongoDB"))
   .catch(err => console.log("MongoDB connection error:", err));
 

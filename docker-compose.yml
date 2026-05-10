@@ -1,0 +1,38 @@
+services:               # defines all the containers we want to run
+  app:                  # name of this node.js container (can be anything)
+    build: .            # build the image using the Dockerfile in current directory
+    ports:
+      - "3000:3000"     # map port 3000 on my Mac to port 3000 in the container
+                        # so localhost:3000 still works in Postman
+    depends_on:
+      - mongo           # start mongo container before this one
+      - redis           # start redis container before this one
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/flight-booking
+                        # "mongo" here is the container name, not localhost
+                        # Docker creates an internal network where containers
+                        # find each other by name
+      - REDIS_URL=redis://redis:6379
+                        # same idea — "redis" is the container name
+
+  mongo:                # container name — this is why the app uses "mongo" not "localhost"
+    image: mongo:7      # download official MongoDB v7 image from Docker Hub
+    ports:
+      - "27017:27017"   # expose MongoDB port so you can still connect from Postman/Compass
+    volumes:
+      - mongo-data:/data/db   # persist data to a named volume
+                              # without this, data is lost every time the container restarts
+
+  redis:                # container name
+    image: redis:7-alpine   # official Redis v7, alpine = smaller image size
+    ports:
+      - "6379:6379"     # expose Redis port
+
+volumes:
+  mongo-data:                # declares the named volume used by MongoDB ("Hey Docker, create a storage box called mongo-data")
+                             # and this volume is used  inside the mogo service ("Put MongoDB's data folder (/data/db) in that box")
+                             # Docker manages where this is stored on your Mac
+                             # your flights and users data survives container restarts
+                             # The reason this matters: MongoDB inside the container stores data at /data/db. If the container restarts without a volume, that folder is wiped clean — all your flights and users gone. The volume saves it on your Mac's disk so it survives restarts.
+
+
