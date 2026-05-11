@@ -39,3 +39,21 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   name = "flight-api-ec2-profile"
   role = aws_iam_role.ec2_role.name
 }
+
+# add the secrets read policy
+resource "aws_iam_role_policy" "secrets_read" {
+  name = "secrets-read-policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "secretsmanager:GetSecretValue"
+      ]
+      Resource = "*"
+    }]
+  })
+}
+

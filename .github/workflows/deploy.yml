@@ -44,6 +44,11 @@ jobs:
             aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 107422471392.dkr.ecr.us-east-1.amazonaws.com
             docker pull 107422471392.dkr.ecr.us-east-1.amazonaws.com/flight-booking-api:latest
             cd flight-booking-api
+            SECRETS=$(aws secretsmanager get-secret-value --secret-id flight-api/prod --region us-east-1 --query SecretString --output text)
+            export MONGO_USERNAME=$(echo $SECRETS | jq -r '.MONGO_USERNAME')
+            export MONGO_PASSWORD=$(echo $SECRETS | jq -r '.MONGO_PASSWORD')
+            export REDIS_URL=$(echo $SECRETS | jq -r '.REDIS_URL')
+            export JWT_SECRET=$(echo $SECRETS | jq -r '.JWT_SECRET')
             docker-compose down
             IMAGE=107422471392.dkr.ecr.us-east-1.amazonaws.com/flight-booking-api:latest docker-compose up -d
           EOF

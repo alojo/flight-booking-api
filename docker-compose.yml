@@ -9,17 +9,21 @@ services:               # defines all the containers we want to run
       - mongo           # start mongo container before this one
       - redis           # start redis container before this one
     environment:
-      - MONGO_URL=mongodb://mongo:27017/flight-booking
+      - MONGO_URL=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongo:27017/flight-booking?authSource=admin
                         # "mongo" here is the container name, not localhost
                         # Docker creates an internal network where containers
                         # find each other by name
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
                         # same idea — "redis" is the container name
+      - JWT_SECRET=${JWT_SECRET:-local-dev-secret}
 
   mongo:                # container name — this is why the app uses "mongo" not "localhost"
     image: mongo:7      # download official MongoDB v7 image from Docker Hub
     ports:
       - "27017:27017"   # expose MongoDB port so you can still connect from Postman/Compass
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-password}
     volumes:
       - mongo-data:/data/db   # persist data to a named volume
                               # without this, data is lost every time the container restarts

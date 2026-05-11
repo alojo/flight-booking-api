@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = "your-secret-key-change-later";
+// The JWT secret is like a stamp. Login stamps the token with it, and the auth middleware checks "does this token have the right stamp?" If someone doesn't know the secret, they can't forge a valid token.
+const JWT_SECRET = process.env.JWT_SECRET;
+
 
 const auth = (req, res, next) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
