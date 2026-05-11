@@ -1,5 +1,6 @@
 services:               # defines all the containers we want to run
   app:                  # name of this node.js container (can be anything)
+    image: ${IMAGE:-flight-booking-api-app}   # Locally IMAGE isnt set, so it defaults to flight-booking-api-app vs on EC2 it uses the ECR image (IMAGE=ecr-url docker-compose up)
     build: .            # build the image using the Dockerfile in current directory
     ports:
       - "3000:3000"     # map port 3000 on my Mac to port 3000 in the container

@@ -1,0 +1,51 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write       # enables OIDC. Without this, GitHub can't generate the token to send to AWS
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4     # pulls the code into the GitHub runner
+
+      - name: Configure AWS credentials (OIDC)    # this is the OIDC magic. GitHub says "I'm the repo flight-booking-api" and AWS says "ok, I trust you, here are temporary credentials." No access keys stored anywhere
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::107422471392:role/github-actions-deploy
+          aws-region: us-east-1
+
+      - name: Login to ECR      # uses those temporary credentials to authenticate with my Docker registry
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image   # builds the Docker image on GitHub's server and pushes it to ECR
+        env:
+          ECR_URL: 107422471392.dkr.ecr.us-east-1.amazonaws.com/flight-booking-api
+        run: |
+          docker build -t $ECR_URL:latest .
+          docker push $ECR_URL:latest
+
+      - name: Deploy to EC2       # writes the SSH key from GitHub Secrets to a temp file, SSHs into your EC2, logs into ECR from the server, pulls the new image, restarts the containers, then deletes the key file
+        env:
+          EC2_HOST: 13.217.207.240
+          ECR_URL: 107422471392.dkr.ecr.us-east-1.amazonaws.com/flight-booking-api
+        run: |
+          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
+          ssh -o StrictHostKeyChecking=no -i key.pem ec2-user@$EC2_HOST << 'EOF'
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 107422471392.dkr.ecr.us-east-1.amazonaws.com
+            docker pull 107422471392.dkr.ecr.us-east-1.amazonaws.com/flight-booking-api:latest
+            cd flight-booking-api
+            docker-compose down
+            IMAGE=107422471392.dkr.ecr.us-east-1.amazonaws.com/flight-booking-api:latest docker-compose up -d
+          EOF
+          rm -f key.pem
+
