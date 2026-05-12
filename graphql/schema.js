@@ -2,7 +2,8 @@
 const { buildSchema } = require("graphql");  // Imports the function that converts a schema string into a GraphQL schema object. Think of it like a compiler for your type definitions.
 const Flight = require("../models/Flight");
 const Booking = require("../models/Booking");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+const { broadcast } = require("../websocket");
 
 /**
  * Helper to verify the token
@@ -90,15 +91,20 @@ const root = {
    createFlight: async ({ number, origin, destination, departure, price, totalSeats }, context) => {
     authenticate(context);
     const flight = new Flight({ number, origin, destination, departure, price, totalSeats });
-    return await flight.save();
+    const newFlight =  await flight.save();
+    broadcast( { type: "FILE_CREATED", flight: newFlight });
+    return newFlight;
   },
   updateFlight: async ({ id, ...updates }, context) => {
     authenticate(context);
-    return await Flight.findByIdAndUpdate(id, updates, { new: true }); //{ new: true } returns the updated document instead of the old one. ...updates collects only the fields that were passed — so if you only send price, only price gets updated.
+    const updatedFlight =  await Flight.findByIdAndUpdate(id, updates, { new: true }); //{ new: true } returns the updated document instead of the old one. ...updates collects only the fields that were passed — so if you only send price, only price gets updated.
+    broadcast( { type: "FILE_UPDATED", flight: updatedFlight });
+    return updatedFlight;
   },
   deleteFlight: async ({ id }, context) => {
     authenticate(context);
     await Flight.findByIdAndDelete(id);
+    broadcast( { type: "FILE_DELETED", IDBCursor });
     return "Flight deleted";
   },
 };

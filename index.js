@@ -1,5 +1,8 @@
+const http = require("http");
 const express = require("express"); // 1. Import Express library
 const mongoose = require("mongoose");
+const { init: initWebSocket, broadcast } = require("./websocket");
+
 const { createHandler } = require("graphql-http/lib/use/express");
 const { schema, root } = require("./graphql/schema");
 const redisClient = require("./config/redis")
@@ -203,6 +206,9 @@ app.post("/api/flights", auth, asyncHandler( async (req, res) => {
     }
     const flight = await Flight.create({ number, origin, destination, departure, price });
 
+    // add broadcast when a new flight is created
+    broadcast({ type: "FLIGHT_CREATED", flight });
+
     // await invalidateCache("flights"); // NOTE this is used with middleware
     const keys = await redisClient.keys("flights:*");
     if (keys.length) await redisClient.del(keys);
@@ -216,6 +222,8 @@ app.put("/api/flights/:id", auth, asyncHandler( async (req, res) => {
     const flight = await Flight.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!flight) return res.status(404).json({ success: false, error: "Flight not found" });
 
+    broadcast({ type: "FLIGHT_UPDATED", flight});
+
     // await invalidateCache("flights"); // NOTE this is used with middleware
     const keys = await redisClient.keys("flights:*");
     if (keys.length) await redisClient.del(keys);
@@ -228,6 +236,8 @@ app.put("/api/flights/:id", auth, asyncHandler( async (req, res) => {
 app.delete("/api/flights/:id", auth, asyncHandler(async (req, res) => {
     const flight = await Flight.findByIdAndDelete(req.params.id);
     if (!flight) return res.status(404).json({ success: false, error: "Flight not found" });
+
+    broadcast({ type: "FLIGHT_DELETED", id: req.params.id });
 
     // await invalidateCache("flights"); // NOTE this is used with middleware
     const keys = await redisClient.keys("flights:*");
@@ -276,9 +286,16 @@ app.all("/graphql", createHandler({
 }));
 
 // Start server
-app.listen( 3000, () => {
-  console.log("Flight API running on http://localhost:3000");
-});
+// app.listen( 3000, () => {
+//   console.log("Flight API running on http://localhost:3000");
+// });
+
+const server = http.createServer(app);
+initWebSocket(server);
+
+server.listen(3000, () => {
+    console.log("Flight API running on http://localhost:3000");
+})
 
 /**
 > why are we using auth middleware as a param n not a wrapper in index.js?
