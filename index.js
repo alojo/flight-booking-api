@@ -1,5 +1,7 @@
 const express = require("express"); // 1. Import Express library
 const mongoose = require("mongoose");
+const { createHandler } = require("graphql-http/lib/use/express");
+const { schema, root } = require("./graphql/schema");
 const redisClient = require("./config/redis")
 const Flight = require("./models/Flight");
 const bookingRoutes = require("./routes/bookings");
@@ -266,6 +268,12 @@ That's why errorHandler must be after all your routes — Express calls error mi
  */
 // add middleware for error handling
 app.use(errorHandler)
+
+app.all("/graphql", createHandler({
+  schema: schema,
+  rootValue: root,
+  context: (req) => ({ headers: req.headers }), //pass the request as context so resolvers can access headers for authentication
+}));
 
 // Start server
 app.listen( 3000, () => {
