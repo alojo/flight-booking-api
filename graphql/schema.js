@@ -92,19 +92,19 @@ const root = {
     authenticate(context);
     const flight = new Flight({ number, origin, destination, departure, price, totalSeats });
     const newFlight =  await flight.save();
-    broadcast( { type: "FILE_CREATED", flight: newFlight });
+    broadcast( { type: "FLIGHT_CREATED", flight: newFlight });
     return newFlight;
   },
   updateFlight: async ({ id, ...updates }, context) => {
     authenticate(context);
     const updatedFlight =  await Flight.findByIdAndUpdate(id, updates, { new: true }); //{ new: true } returns the updated document instead of the old one. ...updates collects only the fields that were passed — so if you only send price, only price gets updated.
-    broadcast( { type: "FILE_UPDATED", flight: updatedFlight });
+    broadcast( { type: "FLIGHT_UPDATED", flight: updatedFlight });
     return updatedFlight;
   },
   deleteFlight: async ({ id }, context) => {
     authenticate(context);
     await Flight.findByIdAndDelete(id);
-    broadcast( { type: "FILE_DELETED", IDBCursor });
+    broadcast( { type: "FLIGHT_DELETED", id });
     return "Flight deleted";
   },
 };
